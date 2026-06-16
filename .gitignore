@@ -6,3 +6,4 @@ dist/
 
 .claude/
 PLAN.md
+atlas-credentials.env
