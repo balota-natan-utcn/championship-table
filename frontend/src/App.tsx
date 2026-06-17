@@ -10,6 +10,8 @@ import DashboardPage from './pages/admin/DashboardPage';
 import NewChampionshipPage from './pages/admin/NewChampionshipPage';
 import AddMatchPage from './pages/admin/AddMatchPage';
 import PlayersAdminPage from './pages/admin/PlayersAdminPage';
+import TeamsAdminPage from './pages/admin/TeamsAdminPage';
+import LiveMatchPage from './pages/admin/LiveMatchPage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('admin_token');
@@ -52,6 +54,14 @@ export default function App() {
           <Route
             path="/admin/players"
             element={<RequireAuth><PlayersAdminPage /></RequireAuth>}
+          />
+          <Route
+            path="/admin/teams"
+            element={<RequireAuth><TeamsAdminPage /></RequireAuth>}
+          />
+          <Route
+            path="/admin/match/live"
+            element={<RequireAuth><LiveMatchPage /></RequireAuth>}
           />
         </Routes>
       </div>

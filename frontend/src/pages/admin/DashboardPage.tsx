@@ -66,13 +66,27 @@ export default function DashboardPage() {
           >
             Jucători
           </Link>
+          {championship && (
+            <Link
+              to="/admin/teams"
+              className="bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg px-4 py-2 transition-colors"
+            >
+              Echipe
+            </Link>
+          )}
           {championship ? (
             <>
               <Link
-                to="/admin/matches/add"
+                to="/admin/match/live"
                 className="bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg px-4 py-2 transition-colors"
               >
-                + Adaugă meci
+                ⚽ Timer meci
+              </Link>
+              <Link
+                to="/admin/matches/add"
+                className="bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg px-4 py-2 transition-colors"
+              >
+                + Meci manual
               </Link>
               <button
                 onClick={handleFinish}
