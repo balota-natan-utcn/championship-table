@@ -56,46 +56,52 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="max-w-5xl mx-auto px-4 py-6 pb-24 sm:pb-8 space-y-8">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-        <div className="flex gap-3">
-          <Link
-            to="/admin/players"
-            className="bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg px-4 py-2 transition-colors"
-          >
-            Jucători
-          </Link>
-          {championship && (
+        <div className="flex items-center gap-3">
+          {/* Nav links — visible only on desktop (mobile uses bottom nav) */}
+          <div className="hidden sm:flex gap-3">
             <Link
-              to="/admin/teams"
+              to="/admin/players"
               className="bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg px-4 py-2 transition-colors"
             >
-              Echipe
+              Jucători
             </Link>
-          )}
-          {championship ? (
-            <>
+            {championship && (
               <Link
-                to="/admin/match/live"
-                className="bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg px-4 py-2 transition-colors"
-              >
-                Timer meci
-              </Link>
-              <Link
-                to="/admin/matches/add"
+                to="/admin/teams"
                 className="bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg px-4 py-2 transition-colors"
               >
-                + Meci manual
+                Echipe
               </Link>
-              <button
-                onClick={handleFinish}
-                disabled={finishing}
-                className="bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white text-sm rounded-lg px-4 py-2 transition-colors"
-              >
-                Termină campionatul
-              </button>
-            </>
+            )}
+            {championship && (
+              <>
+                <Link
+                  to="/admin/match/live"
+                  className="bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg px-4 py-2 transition-colors"
+                >
+                  Timer meci
+                </Link>
+                <Link
+                  to="/admin/matches/add"
+                  className="bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg px-4 py-2 transition-colors"
+                >
+                  + Meci manual
+                </Link>
+              </>
+            )}
+          </div>
+          {/* Action buttons — always visible */}
+          {championship ? (
+            <button
+              onClick={handleFinish}
+              disabled={finishing}
+              className="bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white text-sm rounded-lg px-4 py-2 transition-colors"
+            >
+              Termină campionatul
+            </button>
           ) : (
             <Link
               to="/admin/championship/new"

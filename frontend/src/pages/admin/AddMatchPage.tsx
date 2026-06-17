@@ -101,7 +101,7 @@ export default function AddMatchPage() {
   const penaltyGoal = goals.find((g) => g.is_penalty_decider);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-2xl mx-auto px-4 py-6 pb-24 sm:pb-8">
       <h1 className="text-2xl font-bold text-white mb-6">Adaugă meci</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">

@@ -51,7 +51,7 @@ export default function TeamsAdminPage() {
 
   if (teams.length === 0) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-8 text-center text-slate-500">
+      <div className="max-w-3xl mx-auto px-4 py-6 pb-24 sm:pb-8 text-center text-slate-500">
         Niciun campionat activ sau nicio echipă creată.
       </div>
     );
@@ -60,7 +60,7 @@ export default function TeamsAdminPage() {
   const unassignedPlayers = allPlayers.filter((p) => !assignedIds.has(p._id));
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 py-6 pb-24 sm:pb-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Gestionare echipe</h1>
         {unassignedPlayers.length > 0 && (

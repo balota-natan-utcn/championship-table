@@ -12,9 +12,9 @@ export default function MatchCard({ match, showDate }: Props) {
   const winnerId = match.winner_id?._id ?? match.winner_id;
 
   return (
-    <div className="bg-slate-800 rounded-lg px-4 py-3 flex items-center gap-3 border border-slate-700">
+    <div className="bg-slate-800 rounded-lg px-4 py-3.5 flex items-center gap-3 border border-slate-700 min-h-[52px]">
       {showDate && (
-        <span className="text-xs text-slate-500 w-20 flex-shrink-0">
+        <span className="text-xs text-slate-500 w-16 flex-shrink-0 font-mono">
           {new Date(match.evening_date).toLocaleDateString('ro-RO', {
             day: '2-digit',
             month: '2-digit',
@@ -23,42 +23,42 @@ export default function MatchCard({ match, showDate }: Props) {
       )}
 
       {/* Team 1 */}
-      <div className="flex items-center gap-2 flex-1 justify-end">
+      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
         <span
-          className={`font-medium text-sm ${
+          className={`font-medium text-sm truncate ${
             winnerId === t1._id ? 'text-white' : 'text-slate-400'
           }`}
         >
           {t1.name}
         </span>
         <span
-          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          className="w-3 h-3 rounded-full flex-shrink-0"
           style={{ backgroundColor: t1.color }}
         />
       </div>
 
       {/* Score */}
-      <div className="flex items-center gap-1 font-mono font-bold text-lg min-w-[80px] justify-center">
+      <div className="flex items-center gap-1 font-mono font-bold text-xl min-w-[72px] justify-center flex-shrink-0">
         <span className={winnerId === t1._id ? 'text-white' : 'text-slate-500'}>
           {match.score1}
         </span>
-        <span className="text-slate-600 mx-1">-</span>
+        <span className="text-slate-600">–</span>
         <span className={winnerId === t2._id ? 'text-white' : 'text-slate-500'}>
           {match.score2}
         </span>
         {isPenalty && (
-          <span className="text-xs text-yellow-400 ml-1" title="Decis la penalty">P</span>
+          <span className="text-[10px] text-yellow-400 ml-0.5 font-sans font-medium" title="Decis la penalty">P</span>
         )}
       </div>
 
       {/* Team 2 */}
-      <div className="flex items-center gap-2 flex-1">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         <span
-          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          className="w-3 h-3 rounded-full flex-shrink-0"
           style={{ backgroundColor: t2.color }}
         />
         <span
-          className={`font-medium text-sm ${
+          className={`font-medium text-sm truncate ${
             winnerId === t2._id ? 'text-white' : 'text-slate-400'
           }`}
         >

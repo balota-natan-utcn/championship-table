@@ -154,7 +154,7 @@ export default function LiveMatchPage() {
   // ─── SETUP ───────────────────────────────────────────────────────────────
   if (phase === 'setup') {
     return (
-      <div className="min-h-[100dvh] bg-slate-900 px-4 py-6 flex flex-col gap-5 max-w-md mx-auto">
+      <div className="min-h-[100dvh] bg-slate-900 px-4 py-6 pb-24 flex flex-col gap-5 max-w-md mx-auto">
         <h1 className="text-xl font-bold text-white">Timer meci</h1>
 
         <div className="bg-slate-800 rounded-2xl p-5 space-y-5">
@@ -223,7 +223,7 @@ export default function LiveMatchPage() {
   // ─── DONE ────────────────────────────────────────────────────────────────
   if (phase === 'done') {
     return (
-      <div className="min-h-[100dvh] bg-slate-900 px-4 py-6 flex flex-col gap-5 max-w-md mx-auto">
+      <div className="min-h-[100dvh] bg-slate-900 px-4 py-6 pb-24 flex flex-col gap-5 max-w-md mx-auto">
         <h1 className="text-xl font-bold text-white">Meci terminat</h1>
 
         <div className="bg-slate-800 rounded-2xl p-6">
@@ -371,7 +371,7 @@ export default function LiveMatchPage() {
       </div>
 
       {/* ── GOALS LOG ──────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4 space-y-2 min-h-0">
+      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-20 space-y-2 min-h-0">
         {goals.length === 0 ? (
           <p className="text-center text-slate-700 text-sm py-2">Niciun gol</p>
         ) : (

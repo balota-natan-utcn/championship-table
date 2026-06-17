@@ -48,7 +48,7 @@ export default function ChampionshipPage() {
 
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
+    <div className="max-w-5xl mx-auto px-4 py-6 pb-24 sm:pb-8 space-y-8 sm:space-y-10">
       <div>
         <Link to="/history" className="text-sm text-slate-500 hover:text-slate-300">
           ← Istoric

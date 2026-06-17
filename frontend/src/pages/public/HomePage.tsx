@@ -44,14 +44,24 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-64 text-slate-400">
-        Se încarcă...
+      <div className="max-w-5xl mx-auto px-4 py-6 pb-24 sm:pb-8 space-y-6">
+        <div className="h-7 w-56 bg-slate-800 rounded animate-pulse" />
+        <div className="space-y-1">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-12 bg-slate-800 rounded animate-pulse" />
+          ))}
+        </div>
+        <div className="space-y-2">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-[52px] bg-slate-800 rounded-lg animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-5xl mx-auto px-4 py-6 pb-24 sm:pb-8 space-y-6 sm:space-y-8">
       {/* Previous champion banner */}
       {prevChampion && (
         <Link
