@@ -80,7 +80,7 @@ export default function DashboardPage() {
                 to="/admin/match/live"
                 className="bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg px-4 py-2 transition-colors"
               >
-                ⚽ Timer meci
+                Timer meci
               </Link>
               <Link
                 to="/admin/matches/add"
