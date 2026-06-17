@@ -118,22 +118,33 @@ function computeEveningsWon(
   return eveningsWon;
 }
 
+function extractId(ref: unknown): string {
+  if (ref && typeof ref === 'object' && '_id' in ref) return (ref as any)._id.toString();
+  return String(ref);
+}
+
 export function computeTopScorers(
   matches: IMatch[]
-): { player_id: string; goals: number; assists: number }[] {
-  const stats: Record<string, { player_id: string; goals: number; assists: number }> = {};
+): { player_id: string; player: unknown; goals: number; assists: number }[] {
+  const stats: Record<string, { player_id: string; player: unknown; goals: number; assists: number }> = {};
 
   for (const match of matches.filter((m) => m.status === 'finished')) {
     for (const goal of match.goals) {
       if (goal.is_penalty_decider) continue;
 
-      const scorerId = goal.scorer_id.toString();
-      if (!stats[scorerId]) stats[scorerId] = { player_id: scorerId, goals: 0, assists: 0 };
+      const scorerId = extractId(goal.scorer_id);
+      const scorerObj = goal.scorer_id && typeof goal.scorer_id === 'object' && '_id' in (goal.scorer_id as object)
+        ? goal.scorer_id
+        : null;
+      if (!stats[scorerId]) stats[scorerId] = { player_id: scorerId, player: scorerObj, goals: 0, assists: 0 };
       stats[scorerId]!.goals++;
 
       if (goal.assist_id) {
-        const assistId = goal.assist_id.toString();
-        if (!stats[assistId]) stats[assistId] = { player_id: assistId, goals: 0, assists: 0 };
+        const assistId = extractId(goal.assist_id);
+        const assistObj = goal.assist_id && typeof goal.assist_id === 'object' && '_id' in (goal.assist_id as object)
+          ? goal.assist_id
+          : null;
+        if (!stats[assistId]) stats[assistId] = { player_id: assistId, player: assistObj, goals: 0, assists: 0 };
         stats[assistId]!.assists++;
       }
     }

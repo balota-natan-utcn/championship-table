@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getChampionship, getStandings, getEvenings, getScorers } from '../../api/championships';
-import { getPlayers } from '../../api/players';
 import StandingsTable from '../../components/StandingsTable';
 import MatchCard from '../../components/MatchCard';
-import type { Championship, TeamStanding, Evening, TopScorer, Player } from '../../types';
+import type { Championship, TeamStanding, Evening, TopScorer } from '../../types';
 
 export default function ChampionshipPage() {
   const { id } = useParams<{ id: string }>();
@@ -12,7 +11,6 @@ export default function ChampionshipPage() {
   const [standings, setStandings] = useState<TeamStanding[]>([]);
   const [evenings, setEvenings] = useState<Evening[]>([]);
   const [scorers, setScorers] = useState<TopScorer[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,13 +20,11 @@ export default function ChampionshipPage() {
       getStandings(id),
       getEvenings(id),
       getScorers(id),
-      getPlayers(),
-    ]).then(([c, s, e, sc, p]) => {
+    ]).then(([c, s, e, sc]) => {
       setChampionship(c);
       setStandings(s);
       setEvenings(e);
       setScorers(sc);
-      setPlayers(p);
       setLoading(false);
     });
   }, [id]);
@@ -50,11 +46,6 @@ export default function ChampionshipPage() {
     );
   }
 
-  const getPlayerName = (id: string) =>
-  {
-    // Convert p._id to a string to ensure a proper match
-    return players.find((p) => p._id.toString() === id.toString())?.name ?? id;
-  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
@@ -110,7 +101,7 @@ export default function ChampionshipPage() {
                 className="bg-slate-800 rounded-lg px-4 py-3 flex items-center gap-4 border border-slate-700"
               >
                 <span className="text-slate-500 font-mono w-5 text-sm">{i + 1}</span>
-                <span className="flex-1 text-white font-medium">{getPlayerName(s.player_id)}</span>
+                <span className="flex-1 text-white font-medium">{s.player?.name ?? s.player_id}</span>
                 <div className="flex gap-4 text-sm">
                   <span className="text-green-400 font-semibold">{s.goals} goluri</span>
                   <span className="text-blue-400">{s.assists} asisturi</span>
