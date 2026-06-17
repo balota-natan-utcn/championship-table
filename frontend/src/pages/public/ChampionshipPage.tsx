@@ -50,7 +50,11 @@ export default function ChampionshipPage() {
     );
   }
 
-  const getPlayerName = (id: string) => players.find((p) => p._id === id)?.name ?? id;
+  const getPlayerName = (id: string) =>
+  {
+    // Convert p._id to a string to ensure a proper match
+    return players.find((p) => p._id.toString() === id.toString())?.name ?? id;
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
