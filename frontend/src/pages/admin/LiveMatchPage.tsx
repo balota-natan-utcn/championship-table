@@ -351,21 +351,21 @@ export default function LiveMatchPage() {
       </div>
 
       {/* ── PAUSE / STOP ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 px-4 flex-shrink-0">
+      <div className="grid grid-cols-2 gap-4 px-4 flex-shrink-0">
         <button onClick={togglePause}
-          className={`py-4 rounded-2xl font-bold text-base transition-all active:scale-95 ${isPaused ? 'bg-green-600 active:bg-green-700 text-white' : 'bg-slate-800 active:bg-slate-700 text-yellow-400 border border-yellow-800'}`}>
+          className={`py-6 rounded-2xl font-bold text-lg transition-all active:scale-95 ${isPaused ? 'bg-green-600 active:bg-green-700 text-white' : 'bg-slate-800 active:bg-slate-700 text-yellow-400 border border-yellow-800'}`}>
           {isPaused ? '▶ Continuă' : '⏸ Pauză'}
         </button>
         <button onClick={stopMatch}
-          className={`py-4 rounded-2xl font-bold text-base transition-all active:scale-95 border ${isExtra ? 'bg-red-600 active:bg-red-700 text-white border-transparent animate-pulse' : 'bg-slate-800 active:bg-slate-700 text-red-400 border-red-900'}`}>
+          className={`py-6 rounded-2xl font-bold text-lg transition-all active:scale-95 border ${isExtra ? 'bg-red-600 active:bg-red-700 text-white border-transparent animate-pulse' : 'bg-slate-800 active:bg-slate-700 text-red-400 border-red-900'}`}>
           ⏹ Oprește
         </button>
       </div>
 
       {/* ── GOL BUTTON ─────────────────────────────────────────────── */}
-      <div className="px-4 pt-3 flex-shrink-0">
+      <div className="px-4 pt-4 flex-shrink-0">
         <button onClick={openGoalPanel} disabled={panel.open}
-          className="w-full bg-green-600 active:bg-green-700 disabled:opacity-50 text-white font-black rounded-2xl py-6 text-3xl tracking-wide transition-all active:scale-[0.98] shadow-lg shadow-green-900/40">
+          className="w-full bg-green-600 active:bg-green-700 disabled:opacity-50 text-white font-black rounded-2xl py-8 text-3xl tracking-wide transition-all active:scale-[0.98] shadow-lg shadow-green-900/40">
           ⚽ GOL!
         </button>
       </div>
