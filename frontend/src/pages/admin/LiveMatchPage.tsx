@@ -19,7 +19,9 @@ interface GoalEntry {
 }
 
 function fmt(secs: number) {
-  return `${Math.floor(secs / 60).toString().padStart(2, '0')}:${(secs % 60).toString().padStart(2, '0')}`;
+  const m = Math.floor(secs / 60).toString().padStart(2, '0');
+  const s = (secs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
 }
 
 function goalMinute(secs: number) {
@@ -33,24 +35,19 @@ export default function LiveMatchPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Setup
   const [duration, setDuration] = useState(7);
   const [eveningDate, setEveningDate] = useState(new Date().toISOString().slice(0, 10));
   const [team1Id, setTeam1Id] = useState('');
   const [team2Id, setTeam2Id] = useState('');
 
-  // Timer
   const [phase, setPhase] = useState<Phase>('setup');
   const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wakeLockRef = useRef<any>(null);
 
-  // Goals
   const [goals, setGoals] = useState<GoalEntry[]>([]);
-
-  // Goal panel
   const [panel, setPanel] = useState({ open: false, elapsedAtGoal: 0, teamId: '', scorerId: '', assistId: '' });
-
-  // Penalty
   const [penaltyWinnerId, setPenaltyWinnerId] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -62,7 +59,7 @@ export default function LiveMatchPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Timer tick
+  // Timer
   useEffect(() => {
     if (phase === 'active' || phase === 'extratime') {
       intervalRef.current = setInterval(() => setElapsed((p) => p + 1), 1000);
@@ -72,10 +69,22 @@ export default function LiveMatchPage() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [phase]);
 
-  // Normal time → extra time transition
+  // Normal → extra time
   useEffect(() => {
     if (phase === 'active' && elapsed >= duration * 60) setPhase('extratime');
   }, [elapsed, phase, duration]);
+
+  // Wake Lock — keep screen on during match
+  useEffect(() => {
+    const isPlaying = phase === 'active' || phase === 'extratime' || phase === 'paused';
+    if (isPlaying && 'wakeLock' in navigator) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (navigator as any).wakeLock.request('screen')
+        .then((wl: unknown) => { wakeLockRef.current = wl; })
+        .catch(() => {});
+    }
+    return () => { wakeLockRef.current?.release().catch(() => {}); wakeLockRef.current = null; };
+  }, [phase]);
 
   // Derived
   const score1 = goals.filter((g) => g.team_id === team1Id && !g.is_penalty_decider).length;
@@ -90,21 +99,12 @@ export default function LiveMatchPage() {
   }
 
   function startMatch() {
-    if (!team1Id || !team2Id || team1Id === team2Id) {
-      toast.error('Selectează două echipe diferite');
-      return;
-    }
-    setPhase('active');
-    setElapsed(0);
-    setGoals([]);
-    setPenaltyWinnerId('');
+    if (!team1Id || !team2Id || team1Id === team2Id) { toast.error('Selectează două echipe diferite'); return; }
+    setPhase('active'); setElapsed(0); setGoals([]); setPenaltyWinnerId('');
   }
 
   function togglePause() {
-    setPhase((prev) => {
-      if (prev === 'paused') return elapsed >= duration * 60 ? 'extratime' : 'active';
-      return 'paused';
-    });
+    setPhase((prev) => prev === 'paused' ? (elapsed >= duration * 60 ? 'extratime' : 'active') : 'paused');
   }
 
   function stopMatch() {
@@ -119,10 +119,13 @@ export default function LiveMatchPage() {
   function submitGoal(e: FormEvent) {
     e.preventDefault();
     if (!panel.teamId || !panel.scorerId) { toast.error('Selectează echipa și marcatorul'); return; }
-    setGoals((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), team_id: panel.teamId, scorer_id: panel.scorerId, assist_id: panel.assistId, elapsedAtGoal: panel.elapsedAtGoal, is_penalty_decider: false },
-    ]);
+    navigator.vibrate?.(100);
+    setGoals((prev) => [...prev, {
+      id: crypto.randomUUID(),
+      team_id: panel.teamId, scorer_id: panel.scorerId,
+      assist_id: panel.assistId, elapsedAtGoal: panel.elapsedAtGoal,
+      is_penalty_decider: false,
+    }]);
     setPanel({ open: false, elapsedAtGoal: 0, teamId: '', scorerId: '', assistId: '' });
   }
 
@@ -131,12 +134,8 @@ export default function LiveMatchPage() {
     setSaving(true);
     try {
       await createMatch({
-        championship_id: championshipId,
-        evening_date: eveningDate,
-        team1_id: team1Id,
-        team2_id: team2Id,
-        score1,
-        score2,
+        championship_id: championshipId, evening_date: eveningDate,
+        team1_id: team1Id, team2_id: team2Id, score1, score2,
         penalty_winner_id: isPenaltyNeeded ? penaltyWinnerId : undefined,
         goals: goals.map((g) => ({ scorer_id: g.scorer_id, team_id: g.team_id, assist_id: g.assist_id || undefined, is_penalty_decider: false })),
       });
@@ -146,65 +145,75 @@ export default function LiveMatchPage() {
     finally { setSaving(false); }
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-64 text-slate-400">Se încarcă...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center h-[100dvh] bg-slate-900 text-slate-400">
+      Se încarcă...
+    </div>
+  );
 
   // ─── SETUP ───────────────────────────────────────────────────────────────
   if (phase === 'setup') {
     return (
-      <div className="max-w-md mx-auto px-4 py-8 space-y-6">
-        <h1 className="text-2xl font-bold text-white">Timer meci live</h1>
+      <div className="min-h-[100dvh] bg-slate-900 px-4 py-6 flex flex-col gap-5 max-w-md mx-auto">
+        <h1 className="text-xl font-bold text-white">⚽ Timer meci</h1>
 
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 space-y-4">
+        <div className="bg-slate-800 rounded-2xl p-5 space-y-5">
+          {/* Duration */}
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Data serii</label>
-            <input
-              type="date"
-              value={eveningDate}
-              onChange={(e) => setEveningDate(e.target.value)}
-              className="bg-slate-700 border border-slate-600 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-green-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">Durată meci (minute)</label>
-            <div className="flex items-center gap-3">
-              <button onClick={() => setDuration((d) => Math.max(1, d - 1))} className="w-10 h-10 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xl font-bold transition-colors">−</button>
-              <span className="text-3xl font-bold text-white w-12 text-center">{duration}</span>
-              <button onClick={() => setDuration((d) => Math.min(20, d + 1))} className="w-10 h-10 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xl font-bold transition-colors">+</button>
+            <label className="block text-sm text-slate-400 mb-3">Durată meci</label>
+            <div className="flex items-center justify-between bg-slate-700 rounded-xl px-2 py-2">
+              <button onClick={() => setDuration((d) => Math.max(1, d - 1))}
+                className="w-14 h-14 text-2xl font-bold text-white rounded-xl active:bg-slate-600 transition-colors flex items-center justify-center">
+                −
+              </button>
+              <span className="text-4xl font-bold text-white">{duration} <span className="text-lg text-slate-400">min</span></span>
+              <button onClick={() => setDuration((d) => Math.min(20, d + 1))}
+                className="w-14 h-14 text-2xl font-bold text-white rounded-xl active:bg-slate-600 transition-colors flex items-center justify-center">
+                +
+              </button>
             </div>
           </div>
 
+          {/* Date */}
+          <div>
+            <label className="block text-sm text-slate-400 mb-2">Data serii</label>
+            <input type="date" value={eveningDate} onChange={(e) => setEveningDate(e.target.value)}
+              className="w-full bg-slate-700 border border-slate-600 text-white text-base rounded-xl px-4 py-3.5 focus:outline-none focus:border-green-500" />
+          </div>
+
+          {/* Teams */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Echipa 1</label>
-              <select value={team1Id} onChange={(e) => setTeam1Id(e.target.value)} className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2.5 focus:outline-none focus:border-green-500">
-                <option value="">Selectează</option>
-                {teams.map((t) => <option key={t._id} value={t._id} disabled={t._id === team2Id}>{t.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Echipa 2</label>
-              <select value={team2Id} onChange={(e) => setTeam2Id(e.target.value)} className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2.5 focus:outline-none focus:border-green-500">
-                <option value="">Selectează</option>
-                {teams.map((t) => <option key={t._id} value={t._id} disabled={t._id === team1Id}>{t.name}</option>)}
-              </select>
-            </div>
+            {[{ label: 'Echipa 1', value: team1Id, set: setTeam1Id, other: team2Id },
+              { label: 'Echipa 2', value: team2Id, set: setTeam2Id, other: team1Id }].map(({ label, value, set, other }) => (
+              <div key={label}>
+                <label className="block text-sm text-slate-400 mb-2">{label}</label>
+                <select value={value} onChange={(e) => set(e.target.value)}
+                  className="w-full bg-slate-700 border border-slate-600 text-white text-base rounded-xl px-3 py-3.5 focus:outline-none focus:border-green-500">
+                  <option value="">Alege</option>
+                  {teams.map((t) => <option key={t._id} value={t._id} disabled={t._id === other}>{t.name}</option>)}
+                </select>
+              </div>
+            ))}
           </div>
 
+          {/* Preview */}
           {team1Id && team2Id && (
-            <div className="flex items-center gap-3 py-2">
-              <span className="flex-1 text-center font-semibold text-white" style={{ color: team1?.color }}>{team1?.name}</span>
-              <span className="text-slate-500 font-mono">vs</span>
-              <span className="flex-1 text-center font-semibold text-white" style={{ color: team2?.color }}>{team2?.name}</span>
+            <div className="flex items-center justify-center gap-4 py-2">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: team1?.color }} />
+                <span className="font-semibold text-white">{team1?.name}</span>
+              </div>
+              <span className="text-slate-500 font-bold">vs</span>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-white">{team2?.name}</span>
+                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: team2?.color }} />
+              </div>
             </div>
           )}
         </div>
 
-        <button
-          onClick={startMatch}
-          disabled={!team1Id || !team2Id}
-          className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl px-4 py-4 text-lg transition-colors"
-        >
+        <button onClick={startMatch} disabled={!team1Id || !team2Id || team1Id === team2Id}
+          className="w-full bg-green-600 active:bg-green-700 disabled:opacity-40 text-white font-bold rounded-2xl py-5 text-xl transition-colors">
           ▶ Start meci
         </button>
       </div>
@@ -214,48 +223,55 @@ export default function LiveMatchPage() {
   // ─── DONE ────────────────────────────────────────────────────────────────
   if (phase === 'done') {
     return (
-      <div className="max-w-md mx-auto px-4 py-8 space-y-6">
+      <div className="min-h-[100dvh] bg-slate-900 px-4 py-6 flex flex-col gap-5 max-w-md mx-auto">
         <h1 className="text-xl font-bold text-white">Meci terminat</h1>
 
-        {/* Final score */}
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 text-center">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-bold text-white text-lg">{team1?.name}</span>
-            <div className="font-mono font-bold text-4xl text-white px-4">{score1} — {score2}</div>
-            <span className="font-bold text-white text-lg">{team2?.name}</span>
+        <div className="bg-slate-800 rounded-2xl p-6">
+          <div className="grid grid-cols-3 items-center text-center mb-4">
+            <div>
+              <div className="w-4 h-4 rounded-full mx-auto mb-2" style={{ backgroundColor: team1?.color }} />
+              <p className="text-sm text-slate-400 mb-2">{team1?.name}</p>
+              <p className="text-6xl font-bold font-mono text-white">{score1}</p>
+            </div>
+            <div className="text-slate-600 text-3xl font-bold">—</div>
+            <div>
+              <div className="w-4 h-4 rounded-full mx-auto mb-2" style={{ backgroundColor: team2?.color }} />
+              <p className="text-sm text-slate-400 mb-2">{team2?.name}</p>
+              <p className="text-6xl font-bold font-mono text-white">{score2}</p>
+            </div>
           </div>
-          <p className="text-slate-500 text-sm">Durata: {fmt(elapsed)}</p>
+          <p className="text-center text-slate-500 text-sm">Durata: {fmt(elapsed)}</p>
         </div>
 
-        {/* Goals summary */}
         {goals.length > 0 && (
-          <div className="space-y-1">
+          <div className="bg-slate-800 rounded-2xl p-4 space-y-2.5">
+            <p className="text-xs text-slate-500 uppercase tracking-wide">Goluri</p>
             {goals.map((g) => {
               const team = teams.find((t) => t._id === g.team_id);
               const scorer = playersFor(g.team_id).find((p) => p._id === g.scorer_id);
               const assister = g.assist_id ? playersFor(g.team_id).find((p) => p._id === g.assist_id) : null;
               return (
-                <div key={g.id} className="flex items-center gap-2 text-sm text-slate-300 px-2">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team?.color }} />
-                  <span className="text-slate-500 w-8">{goalMinute(g.elapsedAtGoal)}</span>
-                  <span>{scorer?.name ?? '?'}</span>
-                  {assister && <span className="text-slate-500">(assist: {assister.name})</span>}
+                <div key={g.id} className="flex items-center gap-3 text-sm">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: team?.color }} />
+                  <span className="text-slate-400 w-8 text-xs">{goalMinute(g.elapsedAtGoal)}</span>
+                  <span className="text-white font-medium flex-1">{scorer?.name ?? '?'}</span>
+                  {assister && <span className="text-slate-500 text-xs">+{assister.name}</span>}
                 </div>
               );
             })}
           </div>
         )}
 
-        {/* Penalty winner */}
         {isPenaltyNeeded && (
-          <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-xl p-4">
-            <p className="text-yellow-400 text-sm font-medium mb-3">Egalitate — câștigător la penalty:</p>
+          <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-2xl p-4">
+            <p className="text-yellow-400 font-semibold mb-3">Egalitate — câștigător penalty:</p>
             <div className="grid grid-cols-2 gap-3">
               {[team1Id, team2Id].map((tid) => {
                 const team = teams.find((t) => t._id === tid);
                 return (
                   <button key={tid} onClick={() => setPenaltyWinnerId(tid)}
-                    className={`py-3 rounded-lg border font-semibold transition-colors ${penaltyWinnerId === tid ? 'border-yellow-500 bg-yellow-900/30 text-yellow-300' : 'border-slate-600 text-slate-300 hover:text-white'}`}>
+                    className={`py-4 rounded-xl border font-bold text-base transition-colors active:scale-95 ${penaltyWinnerId === tid ? 'border-transparent text-white' : 'border-slate-600 text-slate-300'}`}
+                    style={penaltyWinnerId === tid ? { backgroundColor: team?.color } : {}}>
                     {team?.name}
                   </button>
                 );
@@ -264,14 +280,14 @@ export default function LiveMatchPage() {
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 mt-auto">
           <button onClick={() => { setPhase('setup'); setGoals([]); setElapsed(0); }}
-            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-3 font-medium transition-colors">
+            className="flex-1 bg-slate-700 active:bg-slate-600 text-white rounded-2xl py-4 font-semibold text-base transition-colors">
             Refă meciul
           </button>
           <button onClick={handleSave} disabled={saving || (isPenaltyNeeded && !penaltyWinnerId)}
-            className="flex-1 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white font-bold rounded-xl py-3 transition-colors">
-            {saving ? 'Se salvează...' : 'Salvează meciul'}
+            className="flex-[2] bg-green-600 active:bg-green-700 disabled:opacity-40 text-white font-bold rounded-2xl py-4 text-base transition-colors">
+            {saving ? 'Se salvează...' : '✓ Salvează meciul'}
           </button>
         </div>
       </div>
@@ -282,124 +298,166 @@ export default function LiveMatchPage() {
   const isExtra = phase === 'extratime';
   const isPaused = phase === 'paused';
 
+  const timerColor = isPaused ? 'text-yellow-400' : isExtra ? 'text-orange-400' : 'text-green-400';
+
   return (
-    <div className="max-w-md mx-auto px-4 py-6 space-y-4">
-      {/* Score */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-        <div className="grid grid-cols-3 items-center">
-          <div className="text-center">
-            <div className="w-3 h-3 rounded-full mx-auto mb-1" style={{ backgroundColor: team1?.color }} />
-            <p className="text-xs text-slate-400 mb-1 truncate">{team1?.name}</p>
-            <p className="text-5xl font-bold font-mono text-white">{score1}</p>
-          </div>
-          <div className="text-center">
-            {/* Timer */}
-            <p className={`text-3xl font-mono font-bold ${isExtra ? 'text-orange-400' : isPaused ? 'text-yellow-400' : 'text-green-400'}`}>
-              {isExtra ? fmt(duration * 60) : fmt(elapsed)}
-            </p>
-            {isExtra && (
-              <p className="text-orange-400 font-mono font-bold text-xl">+{fmt(extraElapsed)}</p>
-            )}
-            {isPaused && <p className="text-xs text-yellow-400 mt-0.5">PAUZA</p>}
-            {isExtra && !isPaused && <p className="text-xs text-orange-400 mt-0.5">EXTRA TIME</p>}
-          </div>
-          <div className="text-center">
-            <div className="w-3 h-3 rounded-full mx-auto mb-1" style={{ backgroundColor: team2?.color }} />
-            <p className="text-xs text-slate-400 mb-1 truncate">{team2?.name}</p>
-            <p className="text-5xl font-bold font-mono text-white">{score2}</p>
-          </div>
+    <div className="flex flex-col h-[100dvh] bg-slate-950 max-w-md mx-auto select-none overflow-hidden">
+
+      {/* ── STATUS BAR ─────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-1 flex-shrink-0">
+        <span className="text-xs text-slate-600">{eveningDate}</span>
+        {isExtra && (
+          <span className="text-xs font-bold text-orange-400 bg-orange-950 px-2 py-0.5 rounded-full animate-pulse">
+            EXTRA TIME
+          </span>
+        )}
+        {isPaused && (
+          <span className="text-xs font-bold text-yellow-400 bg-yellow-950 px-2 py-0.5 rounded-full">
+            PAUZA
+          </span>
+        )}
+        {!isExtra && !isPaused && <span className="text-xs text-green-500 font-medium">● LIVE</span>}
+      </div>
+
+      {/* ── SCORE ──────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 items-center px-4 py-3 flex-shrink-0">
+        <div className="text-center">
+          <div className="w-3 h-3 rounded-full mx-auto mb-1.5" style={{ backgroundColor: team1?.color }} />
+          <p className="text-xs text-slate-400 leading-tight truncate px-1">{team1?.name}</p>
+        </div>
+        <div /> {/* spacer */}
+        <div className="text-center">
+          <div className="w-3 h-3 rounded-full mx-auto mb-1.5" style={{ backgroundColor: team2?.color }} />
+          <p className="text-xs text-slate-400 leading-tight truncate px-1">{team2?.name}</p>
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 items-center px-4 flex-shrink-0">
+        <p className="text-7xl font-black font-mono text-white text-center">{score1}</p>
+        <p className="text-3xl text-slate-700 font-bold text-center">—</p>
+        <p className="text-7xl font-black font-mono text-white text-center">{score2}</p>
+      </div>
+
+      {/* ── TIMER ──────────────────────────────────────────────────── */}
+      <div className="flex flex-col items-center justify-center py-4 flex-shrink-0">
+        {isExtra ? (
+          <>
+            <p className="text-2xl font-mono text-slate-600 line-through">{fmt(duration * 60)}</p>
+            <p className={`text-6xl font-black font-mono tracking-tight ${timerColor}`}>+{fmt(extraElapsed)}</p>
+          </>
+        ) : (
+          <p className={`text-7xl font-black font-mono tracking-tight ${timerColor}`}>{fmt(elapsed)}</p>
+        )}
+      </div>
+
+      {/* ── PAUSE / STOP ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 px-4 flex-shrink-0">
         <button onClick={togglePause}
-          className={`py-3 rounded-xl font-semibold text-sm transition-colors ${isPaused ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-yellow-600 hover:bg-yellow-500 text-white'}`}>
+          className={`py-4 rounded-2xl font-bold text-base transition-all active:scale-95 ${isPaused ? 'bg-green-600 active:bg-green-700 text-white' : 'bg-slate-800 active:bg-slate-700 text-yellow-400 border border-yellow-800'}`}>
           {isPaused ? '▶ Continuă' : '⏸ Pauză'}
         </button>
         <button onClick={stopMatch}
-          className={`py-3 rounded-xl font-semibold text-sm transition-colors ${isExtra ? 'bg-red-600 hover:bg-red-500 animate-pulse' : 'bg-slate-700 hover:bg-red-700'} text-white`}>
-          ⏹ Oprește meciul
+          className={`py-4 rounded-2xl font-bold text-base transition-all active:scale-95 border ${isExtra ? 'bg-red-600 active:bg-red-700 text-white border-transparent animate-pulse' : 'bg-slate-800 active:bg-slate-700 text-red-400 border-red-900'}`}>
+          ⏹ Oprește
         </button>
       </div>
 
-      {/* Goal button */}
-      {!panel.open && (
-        <button onClick={openGoalPanel}
-          className="w-full bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl py-5 text-xl transition-colors">
+      {/* ── GOL BUTTON ─────────────────────────────────────────────── */}
+      <div className="px-4 pt-3 flex-shrink-0">
+        <button onClick={openGoalPanel} disabled={panel.open}
+          className="w-full bg-green-600 active:bg-green-700 disabled:opacity-50 text-white font-black rounded-2xl py-6 text-3xl tracking-wide transition-all active:scale-[0.98] shadow-lg shadow-green-900/40">
           ⚽ GOL!
         </button>
-      )}
+      </div>
 
-      {/* Goal entry panel */}
-      {panel.open && (
-        <div className="bg-slate-800 border-2 border-green-600 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="font-semibold text-white">⚽ Gol la {goalMinute(panel.elapsedAtGoal)}</p>
-            <button onClick={() => setPanel((p) => ({ ...p, open: false }))} className="text-slate-400 hover:text-white text-xl">✕</button>
-          </div>
-
-          <form onSubmit={submitGoal} className="space-y-3">
-            {/* Team buttons */}
-            <div className="grid grid-cols-2 gap-2">
-              {[team1Id, team2Id].map((tid) => {
-                const team = teams.find((t) => t._id === tid);
-                return (
-                  <button key={tid} type="button" onClick={() => setPanel((p) => ({ ...p, teamId: tid, scorerId: '', assistId: '' }))}
-                    className={`py-2.5 rounded-lg border font-medium text-sm transition-colors ${panel.teamId === tid ? 'text-white border-transparent' : 'border-slate-600 text-slate-400 hover:text-white'}`}
-                    style={panel.teamId === tid ? { backgroundColor: team?.color, borderColor: team?.color } : {}}>
-                    {team?.name}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Scorer */}
-            <select value={panel.scorerId} onChange={(e) => setPanel((p) => ({ ...p, scorerId: e.target.value, assistId: '' }))}
-              disabled={!panel.teamId}
-              className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2.5 focus:outline-none focus:border-green-500 disabled:opacity-50">
-              <option value="">Marcator *</option>
-              {playersFor(panel.teamId).map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
-            </select>
-
-            {/* Assister */}
-            <select value={panel.assistId} onChange={(e) => setPanel((p) => ({ ...p, assistId: e.target.value }))}
-              disabled={!panel.scorerId}
-              className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2.5 focus:outline-none focus:border-green-500 disabled:opacity-50">
-              <option value="">Assist (opțional)</option>
-              {playersFor(panel.teamId).filter((p) => p._id !== panel.scorerId).map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
-            </select>
-
-            <button type="submit"
-              className="w-full bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg py-3 transition-colors">
-              Confirmă golul
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Goals log */}
-      {goals.length > 0 && (
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-2">
-          <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Goluri marcate</p>
-          {[...goals].reverse().map((g) => {
+      {/* ── GOALS LOG ──────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4 space-y-2 min-h-0">
+        {goals.length === 0 ? (
+          <p className="text-center text-slate-700 text-sm py-2">Niciun gol</p>
+        ) : (
+          [...goals].reverse().map((g) => {
             const team = teams.find((t) => t._id === g.team_id);
             const scorer = playersFor(g.team_id).find((p) => p._id === g.scorer_id);
             const assister = g.assist_id ? playersFor(g.team_id).find((p) => p._id === g.assist_id) : null;
             return (
-              <div key={g.id} className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team?.color }} />
-                <span className="text-slate-400 text-xs w-8">{goalMinute(g.elapsedAtGoal)}</span>
-                <span className="text-white text-sm flex-1">{scorer?.name ?? '?'}</span>
-                {assister && <span className="text-slate-500 text-xs">{assister.name}</span>}
+              <div key={g.id} className="flex items-center gap-2 bg-slate-800/80 rounded-xl px-3 py-2.5">
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: team?.color }} />
+                <span className="text-slate-500 text-xs w-7 font-mono">{goalMinute(g.elapsedAtGoal)}</span>
+                <span className="text-white text-sm font-medium flex-1 truncate">{scorer?.name ?? '?'}</span>
+                {assister && <span className="text-slate-500 text-xs truncate max-w-[80px]">+{assister.name}</span>}
                 <button onClick={() => setGoals((prev) => prev.filter((x) => x.id !== g.id))}
-                  className="text-red-400 hover:text-red-300 text-sm px-2 py-1 rounded hover:bg-red-900/20 transition-colors">
-                  Anulează
+                  className="text-slate-600 active:text-red-400 text-xl px-1 py-1 flex-shrink-0 transition-colors">
+                  ×
                 </button>
               </div>
             );
-          })}
-        </div>
+          })
+        )}
+      </div>
+
+      {/* ── GOAL ENTRY BOTTOM SHEET ────────────────────────────────── */}
+      {panel.open && (
+        <>
+          {/* Overlay */}
+          <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setPanel((p) => ({ ...p, open: false }))} />
+
+          {/* Sheet */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 rounded-t-3xl border-t border-slate-700 px-4 pt-3 pb-[env(safe-area-inset-bottom,16px)] max-w-md mx-auto">
+            {/* Drag handle */}
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto mb-4" />
+
+            <div className="flex items-center justify-between mb-4">
+              <p className="font-bold text-white text-lg">⚽ Gol la {goalMinute(panel.elapsedAtGoal)}</p>
+              <button onClick={() => setPanel((p) => ({ ...p, open: false }))}
+                className="w-8 h-8 flex items-center justify-center text-slate-400 active:text-white text-xl">×</button>
+            </div>
+
+            <form onSubmit={submitGoal} className="space-y-3">
+              {/* Team buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                {[team1Id, team2Id].map((tid) => {
+                  const team = teams.find((t) => t._id === tid);
+                  const selected = panel.teamId === tid;
+                  return (
+                    <button key={tid} type="button"
+                      onClick={() => setPanel((p) => ({ ...p, teamId: tid, scorerId: '', assistId: '' }))}
+                      className="py-4 rounded-2xl font-bold text-sm transition-all active:scale-95 border"
+                      style={selected
+                        ? { backgroundColor: team?.color, borderColor: team?.color, color: '#fff' }
+                        : { borderColor: '#374151', color: '#9ca3af' }}>
+                      {team?.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Scorer */}
+              <select value={panel.scorerId}
+                onChange={(e) => setPanel((p) => ({ ...p, scorerId: e.target.value, assistId: '' }))}
+                disabled={!panel.teamId}
+                className="w-full bg-slate-800 border border-slate-700 text-white text-base rounded-2xl px-4 py-4 focus:outline-none focus:border-green-500 disabled:opacity-40">
+                <option value="">Marcator *</option>
+                {playersFor(panel.teamId).map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+              </select>
+
+              {/* Assister */}
+              <select value={panel.assistId}
+                onChange={(e) => setPanel((p) => ({ ...p, assistId: e.target.value }))}
+                disabled={!panel.scorerId}
+                className="w-full bg-slate-800 border border-slate-700 text-white text-base rounded-2xl px-4 py-4 focus:outline-none focus:border-green-500 disabled:opacity-40">
+                <option value="">Assist (opțional)</option>
+                {playersFor(panel.teamId).filter((p) => p._id !== panel.scorerId).map((p) =>
+                  <option key={p._id} value={p._id}>{p.name}</option>
+                )}
+              </select>
+
+              <button type="submit" disabled={!panel.teamId || !panel.scorerId}
+                className="w-full bg-green-600 active:bg-green-700 disabled:opacity-40 text-white font-bold rounded-2xl py-5 text-lg transition-all active:scale-[0.98]">
+                ✓ Confirmă golul
+              </button>
+            </form>
+          </div>
+        </>
       )}
     </div>
   );
