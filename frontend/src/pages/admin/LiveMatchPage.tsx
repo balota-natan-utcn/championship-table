@@ -155,7 +155,7 @@ export default function LiveMatchPage() {
   if (phase === 'setup') {
     return (
       <div className="min-h-[100dvh] bg-slate-900 px-4 py-6 flex flex-col gap-5 max-w-md mx-auto">
-        <h1 className="text-xl font-bold text-white">⚽ Timer meci</h1>
+        <h1 className="text-xl font-bold text-white">Timer meci</h1>
 
         <div className="bg-slate-800 rounded-2xl p-5 space-y-5">
           {/* Duration */}

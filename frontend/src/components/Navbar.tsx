@@ -14,7 +14,7 @@ export default function Navbar() {
     <nav className="bg-slate-900 border-b border-slate-700 px-4 py-3">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
         <Link to="/" className="text-white font-bold text-lg tracking-wide">
-          ⚽ Campionat
+        Campionat Sintetic Supur
         </Link>
         {!isAdmin && (
           <div className="flex gap-6">

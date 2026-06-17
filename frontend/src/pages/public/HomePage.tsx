@@ -76,7 +76,7 @@ export default function HomePage() {
 
       {!championship ? (
         <div className="text-center py-16 text-slate-500">
-          <p className="text-4xl mb-4">⚽</p>
+          <p className="text-4xl mb-4"></p>
           <p className="text-lg">Niciun campionat activ momentan</p>
         </div>
       ) : (
