@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getActiveChampionship, getStandings, getEvenings, getChampionships } from '../../api/championships';
 import StandingsTable from '../../components/StandingsTable';
 import MatchCard from '../../components/MatchCard';
+import { TrophyIcon } from '../../components/icons';
 import type { Championship, TeamStanding, Evening } from '../../types';
 
 export default function HomePage() {
@@ -73,7 +74,7 @@ export default function HomePage() {
               <p className="text-xs text-yellow-400 uppercase tracking-wider mb-0.5">Campion anterior</p>
               <p className="text-white font-semibold">{prevChampion.name}</p>
             </div>
-            <span className="text-yellow-400 text-2xl">🏆</span>
+            <TrophyIcon className="w-6 h-6 text-yellow-400 flex-shrink-0" />
           </div>
         </Link>
       )}
