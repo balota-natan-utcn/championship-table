@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 export default function PlayersAdminPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [name, setName] = useState('');
+  const [motto, setMotto] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
@@ -29,6 +30,7 @@ export default function PlayersAdminPage() {
   function startEdit(player: Player) {
     setEditId(player._id);
     setName(player.name);
+    setMotto(player.motto ?? '');
     setPreview(player.photo_url);
     setPhoto(null);
   }
@@ -36,6 +38,7 @@ export default function PlayersAdminPage() {
   function cancelEdit() {
     setEditId(null);
     setName('');
+    setMotto('');
     setPhoto(null);
     setPreview('');
   }
@@ -47,6 +50,7 @@ export default function PlayersAdminPage() {
 
     const fd = new FormData();
     fd.append('name', name);
+    fd.append('motto', motto);
     if (photo) fd.append('photo', photo);
 
     try {
@@ -115,6 +119,13 @@ export default function PlayersAdminPage() {
                 placeholder="Numele jucătorului"
                 className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-green-500"
                 required
+              />
+              <input
+                type="text"
+                value={motto}
+                onChange={(e) => setMotto(e.target.value)}
+                placeholder="Motto (opțional)"
+                className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-green-500"
               />
               <div className="flex gap-2">
                 <button

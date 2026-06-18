@@ -137,9 +137,9 @@ export function computeTopScorers(
         ? goal.scorer_id
         : null;
       if (!stats[scorerId]) stats[scorerId] = { player_id: scorerId, player: scorerObj, goals: 0, assists: 0 };
-      stats[scorerId]!.goals++;
+      if (!goal.is_own_goal) stats[scorerId]!.goals++;
 
-      if (goal.assist_id) {
+      if (!goal.is_own_goal && goal.assist_id) {
         const assistId = extractId(goal.assist_id);
         const assistObj = goal.assist_id && typeof goal.assist_id === 'object' && '_id' in (goal.assist_id as object)
           ? goal.assist_id

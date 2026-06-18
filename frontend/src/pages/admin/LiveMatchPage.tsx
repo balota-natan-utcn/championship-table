@@ -11,11 +11,12 @@ type Phase = 'setup' | 'active' | 'paused' | 'extratime' | 'done';
 
 interface GoalEntry {
   id: string;
-  team_id: string;
+  team_id: string;      // benefiting team (for score calculation)
   scorer_id: string;
   assist_id: string;
   elapsedAtGoal: number;
   is_penalty_decider: boolean;
+  is_own_goal: boolean;
 }
 
 function fmt(secs: number) {
@@ -47,7 +48,7 @@ export default function LiveMatchPage() {
   const wakeLockRef = useRef<any>(null);
 
   const [goals, setGoals] = useState<GoalEntry[]>([]);
-  const [panel, setPanel] = useState({ open: false, elapsedAtGoal: 0, teamId: '', scorerId: '', assistId: '' });
+  const [panel, setPanel] = useState({ open: false, elapsedAtGoal: 0, teamId: '', scorerId: '', assistId: '', isOwnGoal: false });
   const [penaltyWinnerId, setPenaltyWinnerId] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -113,20 +114,26 @@ export default function LiveMatchPage() {
   }
 
   function openGoalPanel() {
-    setPanel({ open: true, elapsedAtGoal: elapsed, teamId: '', scorerId: '', assistId: '' });
+    setPanel({ open: true, elapsedAtGoal: elapsed, teamId: '', scorerId: '', assistId: '', isOwnGoal: false });
   }
 
   function submitGoal(e: FormEvent) {
     e.preventDefault();
     if (!panel.teamId || !panel.scorerId) { toast.error('Selectează echipa și marcatorul'); return; }
     navigator.vibrate?.(100);
+    // For own goals: panel.teamId = the team whose player scored OG → benefiting team = opponent
+    const benefitingTeamId = panel.isOwnGoal
+      ? (panel.teamId === team1Id ? team2Id : team1Id)
+      : panel.teamId;
     setGoals((prev) => [...prev, {
       id: crypto.randomUUID(),
-      team_id: panel.teamId, scorer_id: panel.scorerId,
-      assist_id: panel.assistId, elapsedAtGoal: panel.elapsedAtGoal,
+      team_id: benefitingTeamId, scorer_id: panel.scorerId,
+      assist_id: panel.isOwnGoal ? '' : panel.assistId,
+      elapsedAtGoal: panel.elapsedAtGoal,
       is_penalty_decider: false,
+      is_own_goal: panel.isOwnGoal,
     }]);
-    setPanel({ open: false, elapsedAtGoal: 0, teamId: '', scorerId: '', assistId: '' });
+    setPanel({ open: false, elapsedAtGoal: 0, teamId: '', scorerId: '', assistId: '', isOwnGoal: false });
   }
 
   async function handleSave() {
@@ -137,7 +144,7 @@ export default function LiveMatchPage() {
         championship_id: championshipId, evening_date: eveningDate,
         team1_id: team1Id, team2_id: team2Id, score1, score2,
         penalty_winner_id: isPenaltyNeeded ? penaltyWinnerId : undefined,
-        goals: goals.map((g) => ({ scorer_id: g.scorer_id, team_id: g.team_id, assist_id: g.assist_id || undefined, is_penalty_decider: false })),
+        goals: goals.map((g) => ({ scorer_id: g.scorer_id, team_id: g.team_id, assist_id: g.assist_id || undefined, is_penalty_decider: false, is_own_goal: g.is_own_goal })),
       });
       toast.success('Meci salvat!');
       navigate('/admin/dashboard');
@@ -248,13 +255,15 @@ export default function LiveMatchPage() {
             <p className="text-xs text-slate-500 uppercase tracking-wide">Goluri</p>
             {goals.map((g) => {
               const team = teams.find((t) => t._id === g.team_id);
-              const scorer = playersFor(g.team_id).find((p) => p._id === g.scorer_id);
-              const assister = g.assist_id ? playersFor(g.team_id).find((p) => p._id === g.assist_id) : null;
+              const allP = [...playersFor(team1Id), ...playersFor(team2Id)];
+              const scorer = allP.find((p) => p._id === g.scorer_id);
+              const assister = g.assist_id ? allP.find((p) => p._id === g.assist_id) : null;
               return (
                 <div key={g.id} className="flex items-center gap-3 text-sm">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: team?.color }} />
                   <span className="text-slate-400 w-8 text-xs">{goalMinute(g.elapsedAtGoal)}</span>
                   <span className="text-white font-medium flex-1">{scorer?.name ?? '?'}</span>
+                  {g.is_own_goal && <span className="text-xs text-orange-400 font-bold">AG</span>}
                   {assister && <span className="text-slate-500 text-xs">+{assister.name}</span>}
                 </div>
               );
@@ -377,13 +386,15 @@ export default function LiveMatchPage() {
         ) : (
           [...goals].reverse().map((g) => {
             const team = teams.find((t) => t._id === g.team_id);
-            const scorer = playersFor(g.team_id).find((p) => p._id === g.scorer_id);
-            const assister = g.assist_id ? playersFor(g.team_id).find((p) => p._id === g.assist_id) : null;
+            const allP = [...playersFor(team1Id), ...playersFor(team2Id)];
+            const scorer = allP.find((p) => p._id === g.scorer_id);
+            const assister = g.assist_id ? allP.find((p) => p._id === g.assist_id) : null;
             return (
               <div key={g.id} className="flex items-center gap-2 bg-slate-800/80 rounded-xl px-3 py-2.5">
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: team?.color }} />
                 <span className="text-slate-500 text-xs w-7 font-mono">{goalMinute(g.elapsedAtGoal)}</span>
                 <span className="text-white text-sm font-medium flex-1 truncate">{scorer?.name ?? '?'}</span>
+                {g.is_own_goal && <span className="text-xs text-orange-400 font-bold flex-shrink-0">AG</span>}
                 {assister && <span className="text-slate-500 text-xs truncate max-w-[80px]">+{assister.name}</span>}
                 <button onClick={() => setGoals((prev) => prev.filter((x) => x.id !== g.id))}
                   className="text-slate-600 active:text-red-400 text-xl px-1 py-1 flex-shrink-0 transition-colors">
@@ -413,7 +424,23 @@ export default function LiveMatchPage() {
             </div>
 
             <form onSubmit={submitGoal} className="space-y-3">
+              {/* Own goal toggle */}
+              <button
+                type="button"
+                onClick={() => setPanel((p) => ({ ...p, isOwnGoal: !p.isOwnGoal, teamId: '', scorerId: '', assistId: '' }))}
+                className={`w-full py-3 rounded-2xl font-bold text-sm border transition-all active:scale-[0.98] ${
+                  panel.isOwnGoal
+                    ? 'bg-orange-600/20 border-orange-500 text-orange-400'
+                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                }`}
+              >
+                {panel.isOwnGoal ? '⚠ Autogol activat' : 'Autogol?'}
+              </button>
+
               {/* Team buttons */}
+              <p className="text-xs text-slate-500 px-1">
+                {panel.isOwnGoal ? 'Echipa care a marcat în propria poartă:' : 'Echipa care a marcat:'}
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 {[team1Id, team2Id].map((tid) => {
                   const team = teams.find((t) => t._id === tid);
@@ -436,20 +463,22 @@ export default function LiveMatchPage() {
                 onChange={(e) => setPanel((p) => ({ ...p, scorerId: e.target.value, assistId: '' }))}
                 disabled={!panel.teamId}
                 className="w-full bg-slate-800 border border-slate-700 text-white text-base rounded-2xl px-4 py-4 focus:outline-none focus:border-green-500 disabled:opacity-40">
-                <option value="">Marcator *</option>
+                <option value="">{panel.isOwnGoal ? 'Jucătorul care a marcat OG *' : 'Marcator *'}</option>
                 {playersFor(panel.teamId).map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
               </select>
 
-              {/* Assister */}
-              <select value={panel.assistId}
-                onChange={(e) => setPanel((p) => ({ ...p, assistId: e.target.value }))}
-                disabled={!panel.scorerId}
-                className="w-full bg-slate-800 border border-slate-700 text-white text-base rounded-2xl px-4 py-4 focus:outline-none focus:border-green-500 disabled:opacity-40">
-                <option value="">Assist (opțional)</option>
-                {playersFor(panel.teamId).filter((p) => p._id !== panel.scorerId).map((p) =>
-                  <option key={p._id} value={p._id}>{p.name}</option>
-                )}
-              </select>
+              {/* Assister — hidden for own goals */}
+              {!panel.isOwnGoal && (
+                <select value={panel.assistId}
+                  onChange={(e) => setPanel((p) => ({ ...p, assistId: e.target.value }))}
+                  disabled={!panel.scorerId}
+                  className="w-full bg-slate-800 border border-slate-700 text-white text-base rounded-2xl px-4 py-4 focus:outline-none focus:border-green-500 disabled:opacity-40">
+                  <option value="">Assist (opțional)</option>
+                  {playersFor(panel.teamId).filter((p) => p._id !== panel.scorerId).map((p) =>
+                    <option key={p._id} value={p._id}>{p.name}</option>
+                  )}
+                </select>
+              )}
 
               <button type="submit" disabled={!panel.teamId || !panel.scorerId}
                 className="w-full bg-green-600 active:bg-green-700 disabled:opacity-40 text-white font-bold rounded-2xl py-5 text-lg transition-all active:scale-[0.98]">

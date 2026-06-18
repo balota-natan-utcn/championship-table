@@ -60,10 +60,10 @@ router.get('/stats', async (req: Request, res: Response) => {
     teamPlayers[team._id.toString()] = team.player_ids.map((id) => id.toString());
   }
 
-  const stats: Record<string, { player_id: string; goals: number; assists: number; wins: number; matches_played: number }> = {};
+  const stats: Record<string, { player_id: string; goals: number; assists: number; own_goals: number; wins: number; matches_played: number }> = {};
 
   function ensure(playerId: string) {
-    if (!stats[playerId]) stats[playerId] = { player_id: playerId, goals: 0, assists: 0, wins: 0, matches_played: 0 };
+    if (!stats[playerId]) stats[playerId] = { player_id: playerId, goals: 0, assists: 0, own_goals: 0, wins: 0, matches_played: 0 };
     return stats[playerId]!;
   }
 
@@ -82,8 +82,12 @@ router.get('/stats', async (req: Request, res: Response) => {
 
     for (const goal of match.goals) {
       if (goal.is_penalty_decider) continue;
-      ensure(goal.scorer_id.toString()).goals++;
-      if (goal.assist_id) ensure(goal.assist_id.toString()).assists++;
+      if (goal.is_own_goal) {
+        ensure(goal.scorer_id.toString()).own_goals++;
+      } else {
+        ensure(goal.scorer_id.toString()).goals++;
+        if (goal.assist_id) ensure(goal.assist_id.toString()).assists++;
+      }
     }
   }
 
@@ -100,6 +104,55 @@ router.get('/stats', async (req: Request, res: Response) => {
   res.json(result);
 });
 
+// GET /api/players/:id/stats  — all-time stats for a single player
+router.get('/:id/stats', async (req: Request, res: Response) => {
+  const id = req.params['id']!;
+
+  const player = await Player.findById(id);
+  if (!player) { res.status(404).json({ message: 'Player not found' }); return; }
+
+  const matches = await Match.find({ status: 'finished' });
+  if (matches.length === 0) {
+    res.json({ goals: 0, assists: 0, wins: 0, losses: 0, matches_played: 0 });
+    return;
+  }
+
+  const champIds = [...new Set(matches.map((m) => m.championship_id.toString()))];
+  const teams = await Team.find({ championship_id: { $in: champIds } });
+
+  const playerTeamIds = new Set(
+    teams
+      .filter((t) => t.player_ids.some((pid) => pid.toString() === id))
+      .map((t) => t._id.toString())
+  );
+
+  let goals = 0, assists = 0, own_goals = 0, wins = 0, matches_played = 0;
+
+  for (const match of matches) {
+    const t1 = match.team1_id.toString();
+    const t2 = match.team2_id.toString();
+    const winner = match.winner_id.toString();
+    const inT1 = playerTeamIds.has(t1);
+    const inT2 = playerTeamIds.has(t2);
+
+    if (inT1 || inT2) {
+      matches_played++;
+      if ((inT1 && winner === t1) || (inT2 && winner === t2)) wins++;
+    }
+
+    for (const goal of match.goals) {
+      if (goal.is_penalty_decider) continue;
+      if (goal.scorer_id.toString() === id) {
+        if (goal.is_own_goal) own_goals++;
+        else goals++;
+      }
+      if (!goal.is_own_goal && goal.assist_id && goal.assist_id.toString() === id) assists++;
+    }
+  }
+
+  res.json({ goals, assists, own_goals, wins, losses: matches_played - wins, matches_played });
+});
+
 // GET /api/players/:id
 router.get('/:id', async (req: Request, res: Response) => {
   const player = await Player.findById(req.params['id']);
@@ -112,7 +165,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // POST /api/players (admin)
 router.post('/', requireAdmin, upload.single('photo'), async (req: Request, res: Response) => {
-  const { name } = req.body as { name: string };
+  const { name, motto } = req.body as { name: string; motto?: string };
   if (!name) {
     res.status(400).json({ message: 'Name is required' });
     return;
@@ -120,23 +173,24 @@ router.post('/', requireAdmin, upload.single('photo'), async (req: Request, res:
 
   let photo_url = '';
   if (req.file) {
-    const result = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
+    const result = await uploadToCloudinary(req.file.buffer);
     photo_url = result.secure_url;
   }
 
-  const player = await Player.create({ name, photo_url });
+  const player = await Player.create({ name, photo_url, motto: motto ?? '' });
   res.status(201).json(player);
 });
 
 // PUT /api/players/:id (admin)
 router.put('/:id', requireAdmin, upload.single('photo'), async (req: Request, res: Response) => {
-  const { name } = req.body as { name?: string };
-  const update: { name?: string; photo_url?: string } = {};
+  const { name, motto } = req.body as { name?: string; motto?: string };
+  const update: { name?: string; photo_url?: string; motto?: string } = {};
 
   if (name) update.name = name;
+  if (motto !== undefined) update.motto = motto;
 
   if (req.file) {
-    const result = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
+    const result = await uploadToCloudinary(req.file.buffer);
     update.photo_url = result.secure_url;
   }
 
@@ -158,7 +212,7 @@ router.delete('/:id', requireAdmin, async (req: Request, res: Response) => {
   res.json({ message: 'Player deleted' });
 });
 
-function uploadToCloudinary(buffer: Buffer, mimetype: string): Promise<{ secure_url: string }> {
+function uploadToCloudinary(buffer: Buffer): Promise<{ secure_url: string }> {
   return new Promise((resolve, reject) => {
     cloudinary.uploader
       .upload_stream({ folder: 'championship/players', resource_type: 'image' }, (err, result) => {

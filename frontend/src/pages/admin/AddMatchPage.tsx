@@ -9,9 +9,10 @@ import toast from 'react-hot-toast';
 
 interface GoalEntry {
   scorer_id: string;
-  team_id: string;
+  team_id: string;      // for own goals: the team whose player scored OG (not the benefiting team)
   assist_id: string;
   is_penalty_decider: boolean;
+  is_own_goal: boolean;
 }
 
 export default function AddMatchPage() {
@@ -46,7 +47,7 @@ export default function AddMatchPage() {
   function addGoal(isPenaltyDecider = false) {
     setGoals((prev) => [
       ...prev,
-      { scorer_id: '', team_id: '', assist_id: '', is_penalty_decider: isPenaltyDecider },
+      { scorer_id: '', team_id: '', assist_id: '', is_penalty_decider: isPenaltyDecider, is_own_goal: false },
     ]);
   }
 
@@ -83,9 +84,13 @@ export default function AddMatchPage() {
           .filter((g) => g.scorer_id && g.team_id)
           .map((g) => ({
             scorer_id: g.scorer_id,
-            team_id: g.team_id,
-            assist_id: g.assist_id || undefined,
+            // For own goals: g.team_id = scorer's team, benefiting team = opponent
+            team_id: g.is_own_goal
+              ? (g.team_id === team1Id ? team2Id : team1Id)
+              : g.team_id,
+            assist_id: g.is_own_goal ? undefined : (g.assist_id || undefined),
             is_penalty_decider: g.is_penalty_decider,
+            is_own_goal: g.is_own_goal,
           })),
       });
       toast.success('Meci adăugat!');
@@ -217,60 +222,73 @@ export default function AddMatchPage() {
           {regularGoals.map((goal, idx) => {
             const realIdx = goals.indexOf(goal);
             return (
-              <div key={idx} className="flex gap-2 items-center">
-                <select
-                  value={goal.team_id}
-                  onChange={(e) => updateGoal(realIdx, { team_id: e.target.value, scorer_id: '' })}
-                  className="bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500"
-                >
-                  <option value="">Echipă</option>
-                  {[team1Id, team2Id].filter(Boolean).map((tid) => {
-                    const team = teams.find((t) => t._id === tid);
-                    return (
-                      <option key={tid} value={tid}>
-                        {team?.name}
-                      </option>
-                    );
-                  })}
-                </select>
+              <div key={idx} className="space-y-2 pb-2 border-b border-slate-700/50 last:border-0 last:pb-0">
+                <div className="flex gap-2 items-center">
+                  {/* AG toggle */}
+                  <button
+                    type="button"
+                    onClick={() => updateGoal(realIdx, { is_own_goal: !goal.is_own_goal, scorer_id: '', assist_id: '' })}
+                    className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${
+                      goal.is_own_goal
+                        ? 'bg-orange-600/20 border-orange-500 text-orange-400'
+                        : 'border-slate-600 text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    AG
+                  </button>
 
-                <select
-                  value={goal.scorer_id}
-                  onChange={(e) => updateGoal(realIdx, { scorer_id: e.target.value })}
-                  disabled={!goal.team_id}
-                  className="flex-1 bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 disabled:opacity-50"
-                >
-                  <option value="">Marcator</option>
-                  {playersForTeam(goal.team_id).map((p) => (
-                    <option key={p._id} value={p._id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  <select
+                    value={goal.team_id}
+                    onChange={(e) => updateGoal(realIdx, { team_id: e.target.value, scorer_id: '' })}
+                    className="bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500"
+                  >
+                    <option value="">{goal.is_own_goal ? 'Echipa (OG)' : 'Echipă'}</option>
+                    {[team1Id, team2Id].filter(Boolean).map((tid) => {
+                      const team = teams.find((t) => t._id === tid);
+                      return (
+                        <option key={tid} value={tid}>
+                          {team?.name}
+                        </option>
+                      );
+                    })}
+                  </select>
 
-                <select
-                  value={goal.assist_id}
-                  onChange={(e) => updateGoal(realIdx, { assist_id: e.target.value })}
-                  disabled={!goal.team_id}
-                  className="flex-1 bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 disabled:opacity-50"
-                >
-                  <option value="">Assist (opțional)</option>
-                  {playersForTeam(goal.team_id)
-                    .filter((p) => p._id !== goal.scorer_id)
-                    .map((p) => (
-                      <option key={p._id} value={p._id}>
-                        {p.name}
-                      </option>
+                  <select
+                    value={goal.scorer_id}
+                    onChange={(e) => updateGoal(realIdx, { scorer_id: e.target.value })}
+                    disabled={!goal.team_id}
+                    className="flex-1 bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 disabled:opacity-50"
+                  >
+                    <option value="">{goal.is_own_goal ? 'Jucătorul (OG)' : 'Marcator'}</option>
+                    {playersForTeam(goal.team_id).map((p) => (
+                      <option key={p._id} value={p._id}>{p.name}</option>
                     ))}
-                </select>
+                  </select>
 
-                <button
-                  type="button"
-                  onClick={() => removeGoal(realIdx)}
-                  className="text-red-400 hover:text-red-300 px-2"
-                >
-                  ×
-                </button>
+                  {!goal.is_own_goal && (
+                    <select
+                      value={goal.assist_id}
+                      onChange={(e) => updateGoal(realIdx, { assist_id: e.target.value })}
+                      disabled={!goal.team_id}
+                      className="flex-1 bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 disabled:opacity-50"
+                    >
+                      <option value="">Assist (opțional)</option>
+                      {playersForTeam(goal.team_id)
+                        .filter((p) => p._id !== goal.scorer_id)
+                        .map((p) => (
+                          <option key={p._id} value={p._id}>{p.name}</option>
+                        ))}
+                    </select>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => removeGoal(realIdx)}
+                    className="text-red-400 hover:text-red-300 px-2"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             );
           })}

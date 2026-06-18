@@ -5,6 +5,7 @@ export interface IGoal {
   team_id: Types.ObjectId;
   assist_id?: Types.ObjectId;
   is_penalty_decider: boolean;
+  is_own_goal: boolean;
 }
 
 export interface IMatch extends Document {
@@ -26,6 +27,7 @@ const GoalSchema = new Schema<IGoal>(
     team_id: { type: Schema.Types.ObjectId, ref: 'Team', required: true },
     assist_id: { type: Schema.Types.ObjectId, ref: 'Player' },
     is_penalty_decider: { type: Boolean, default: false },
+    is_own_goal: { type: Boolean, default: false },
   },
   { _id: false }
 );

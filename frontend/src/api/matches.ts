@@ -14,6 +14,7 @@ interface MatchPayload {
     team_id: string;
     assist_id?: string;
     is_penalty_decider: boolean;
+    is_own_goal?: boolean;
   }[];
 }
 

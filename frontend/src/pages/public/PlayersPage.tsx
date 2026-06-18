@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getPlayerStats } from '../../api/players';
 import type { PlayerStat } from '../../api/players';
 
@@ -10,6 +11,11 @@ const TABS: { key: Scope; label: string }[] = [
   { key: 'evening', label: 'Seară' },
 ];
 
+function cloudinaryThumb(url: string) {
+  if (!url || !url.includes('cloudinary.com')) return url;
+  return url.replace('/upload/', '/upload/w_64,h_64,c_fill,g_face/');
+}
+
 function UserAvatarIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-slate-500">
@@ -20,6 +26,7 @@ function UserAvatarIcon() {
 }
 
 export default function PlayersPage() {
+  const navigate = useNavigate();
   const [scope, setScope] = useState<Scope>('current');
   const [stats, setStats] = useState<PlayerStat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,19 +90,20 @@ export default function PlayersPage() {
               {stats.map((s, i) => (
                 <tr
                   key={s.player_id}
-                  className="border-t border-slate-700"
+                  onClick={() => navigate(`/players/${s.player_id}`)}
+                  className="border-t border-slate-700 cursor-pointer hover:bg-slate-800/60 active:bg-slate-800 transition-colors"
                 >
                   <td className="px-3 py-3 text-slate-500 font-mono">{i + 1}</td>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2.5">
                       {s.player?.photo_url ? (
                         <img
-                          src={s.player.photo_url}
+                          src={cloudinaryThumb(s.player.photo_url)}
                           alt={s.player.name}
-                          className="w-8 h-8 rounded-full object-cover border border-slate-600 flex-shrink-0"
+                          className="w-7 h-7 rounded-full object-cover border border-slate-600 flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
                           <UserAvatarIcon />
                         </div>
                       )}

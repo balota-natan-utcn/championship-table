@@ -2,7 +2,17 @@ export interface Player {
   _id: string;
   name: string;
   photo_url: string;
+  motto: string;
   createdAt: string;
+}
+
+export interface PlayerDetailStats {
+  goals: number;
+  assists: number;
+  own_goals: number;
+  wins: number;
+  losses: number;
+  matches_played: number;
 }
 
 export interface Championship {
@@ -27,6 +37,7 @@ export interface Goal {
   team_id: string;
   assist_id?: Player | string;
   is_penalty_decider: boolean;
+  is_own_goal: boolean;
 }
 
 export interface Match {
