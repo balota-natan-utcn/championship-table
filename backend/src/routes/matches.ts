@@ -40,6 +40,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     .populate('team1_id', 'name color')
     .populate('team2_id', 'name color')
     .populate('winner_id', 'name color')
+    .populate('penalty_winner_id', 'name color')
     .populate('goals.scorer_id', 'name')
     .populate('goals.assist_id', 'name');
 
@@ -52,7 +53,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // POST /api/matches (admin)
 router.post('/', requireAdmin, async (req: Request, res: Response) => {
-  const { championship_id, evening_date, team1_id, team2_id, score1, score2, penalty_winner_id, goals } =
+  const { championship_id, evening_date, team1_id, team2_id, score1, score2, penalty_winner_id, goals, end_time_seconds } =
     req.body as {
       championship_id: string;
       evening_date: string;
@@ -62,6 +63,7 @@ router.post('/', requireAdmin, async (req: Request, res: Response) => {
       score2: number;
       penalty_winner_id?: string;
       goals?: IGoal[];
+      end_time_seconds?: number;
     };
 
   if (!championship_id || !evening_date || !team1_id || !team2_id) {
@@ -82,6 +84,7 @@ router.post('/', requireAdmin, async (req: Request, res: Response) => {
     winner_id,
     goals: goals ?? [],
     status: 'finished',
+    end_time_seconds: end_time_seconds ?? undefined,
   });
 
   const populated = await match.populate([
@@ -95,12 +98,13 @@ router.post('/', requireAdmin, async (req: Request, res: Response) => {
 
 // PUT /api/matches/:id (admin)
 router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
-  const { score1, score2, penalty_winner_id, goals, status } = req.body as {
+  const { score1, score2, penalty_winner_id, goals, status, end_time_seconds } = req.body as {
     score1?: number;
     score2?: number;
     penalty_winner_id?: string;
     goals?: IGoal[];
     status?: 'scheduled' | 'finished';
+    end_time_seconds?: number;
   };
 
   const match = await Match.findById(req.params['id']);
@@ -114,6 +118,7 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
   if (penalty_winner_id !== undefined) match.penalty_winner_id = new Types.ObjectId(penalty_winner_id);
   if (goals !== undefined) match.goals = goals;
   if (status !== undefined) match.status = status;
+  if (end_time_seconds !== undefined) match.end_time_seconds = end_time_seconds;
 
   if (score1 !== undefined || score2 !== undefined || penalty_winner_id !== undefined) {
     match.winner_id = new Types.ObjectId(

@@ -6,6 +6,7 @@ import ChampionshipPage from './pages/public/ChampionshipPage';
 import HistoryPage from './pages/public/HistoryPage';
 import PlayersPage from './pages/public/PlayersPage';
 import PlayerDetailPage from './pages/public/PlayerDetailPage';
+import MatchDetailPage from './pages/public/MatchDetailPage';
 import LoginPage from './pages/admin/LoginPage';
 import DashboardPage from './pages/admin/DashboardPage';
 import NewChampionshipPage from './pages/admin/NewChampionshipPage';
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/players" element={<PlayersPage />} />
           <Route path="/players/:id" element={<PlayerDetailPage />} />
+          <Route path="/matches/:id" element={<MatchDetailPage />} />
 
           {/* Admin */}
           <Route path="/admin" element={<LoginPage />} />

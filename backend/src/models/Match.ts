@@ -6,6 +6,7 @@ export interface IGoal {
   assist_id?: Types.ObjectId;
   is_penalty_decider: boolean;
   is_own_goal: boolean;
+  minute?: number;
 }
 
 export interface IMatch extends Document {
@@ -19,6 +20,7 @@ export interface IMatch extends Document {
   winner_id: Types.ObjectId;
   goals: IGoal[];
   status: 'scheduled' | 'finished';
+  end_time_seconds?: number;
 }
 
 const GoalSchema = new Schema<IGoal>(
@@ -28,6 +30,7 @@ const GoalSchema = new Schema<IGoal>(
     assist_id: { type: Schema.Types.ObjectId, ref: 'Player' },
     is_penalty_decider: { type: Boolean, default: false },
     is_own_goal: { type: Boolean, default: false },
+    minute: { type: Number },
   },
   { _id: false }
 );
@@ -44,6 +47,7 @@ const MatchSchema = new Schema<IMatch>(
     winner_id: { type: Schema.Types.ObjectId, ref: 'Team', required: true },
     goals: [GoalSchema],
     status: { type: String, enum: ['scheduled', 'finished'], default: 'scheduled' },
+    end_time_seconds: { type: Number },
   },
   { timestamps: true }
 );

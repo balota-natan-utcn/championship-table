@@ -38,6 +38,7 @@ export interface Goal {
   assist_id?: Player | string;
   is_penalty_decider: boolean;
   is_own_goal: boolean;
+  minute?: number;
 }
 
 export interface Match {
@@ -52,6 +53,7 @@ export interface Match {
   winner_id: Team;
   goals: Goal[];
   status: 'scheduled' | 'finished';
+  end_time_seconds?: number;
 }
 
 export interface TeamStanding {

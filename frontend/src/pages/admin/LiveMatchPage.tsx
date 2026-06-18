@@ -144,7 +144,15 @@ export default function LiveMatchPage() {
         championship_id: championshipId, evening_date: eveningDate,
         team1_id: team1Id, team2_id: team2Id, score1, score2,
         penalty_winner_id: isPenaltyNeeded ? penaltyWinnerId : undefined,
-        goals: goals.map((g) => ({ scorer_id: g.scorer_id, team_id: g.team_id, assist_id: g.assist_id || undefined, is_penalty_decider: false, is_own_goal: g.is_own_goal })),
+        end_time_seconds: elapsed,
+        goals: goals.map((g) => ({
+          scorer_id: g.scorer_id,
+          team_id: g.team_id,
+          assist_id: g.assist_id || undefined,
+          is_penalty_decider: false,
+          is_own_goal: g.is_own_goal,
+          minute: Math.floor(g.elapsedAtGoal / 60) + 1,
+        })),
       });
       toast.success('Meci salvat!');
       navigate('/admin/dashboard');

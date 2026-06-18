@@ -13,6 +13,7 @@ interface GoalEntry {
   assist_id: string;
   is_penalty_decider: boolean;
   is_own_goal: boolean;
+  minute: string;
 }
 
 export default function AddMatchPage() {
@@ -26,6 +27,8 @@ export default function AddMatchPage() {
   const [score2, setScore2] = useState(0);
   const [penaltyWinnerId, setPenaltyWinnerId] = useState('');
   const [goals, setGoals] = useState<GoalEntry[]>([]);
+  const [endMin, setEndMin] = useState('');
+  const [endSec, setEndSec] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -47,7 +50,7 @@ export default function AddMatchPage() {
   function addGoal(isPenaltyDecider = false) {
     setGoals((prev) => [
       ...prev,
-      { scorer_id: '', team_id: '', assist_id: '', is_penalty_decider: isPenaltyDecider, is_own_goal: false },
+      { scorer_id: '', team_id: '', assist_id: '', is_penalty_decider: isPenaltyDecider, is_own_goal: false, minute: '' },
     ]);
   }
 
@@ -72,6 +75,10 @@ export default function AddMatchPage() {
 
     setSaving(true);
     try {
+      const endTimeSec = endMin !== '' || endSec !== ''
+        ? (parseInt(endMin || '0') * 60 + parseInt(endSec || '0'))
+        : undefined;
+
       await createMatch({
         championship_id: championshipId,
         evening_date: eveningDate,
@@ -80,6 +87,7 @@ export default function AddMatchPage() {
         score1,
         score2,
         penalty_winner_id: isPenaltyNeeded ? penaltyWinnerId : undefined,
+        end_time_seconds: endTimeSec,
         goals: goals
           .filter((g) => g.scorer_id && g.team_id)
           .map((g) => ({
@@ -91,6 +99,7 @@ export default function AddMatchPage() {
             assist_id: g.is_own_goal ? undefined : (g.assist_id || undefined),
             is_penalty_decider: g.is_penalty_decider,
             is_own_goal: g.is_own_goal,
+            minute: g.minute !== '' ? parseInt(g.minute) : undefined,
           })),
       });
       toast.success('Meci adăugat!');
@@ -203,6 +212,33 @@ export default function AddMatchPage() {
           )}
         </div>
 
+        {/* End time (optional) */}
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-5">
+          <label className="block text-sm text-slate-400 mb-2">Durata meciului (opțional)</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              max={99}
+              value={endMin}
+              onChange={(e) => setEndMin(e.target.value)}
+              placeholder="min"
+              className="w-20 bg-slate-700 border border-slate-600 text-white text-center rounded-lg px-2 py-2.5 focus:outline-none focus:border-green-500"
+            />
+            <span className="text-slate-500 font-bold">:</span>
+            <input
+              type="number"
+              min={0}
+              max={59}
+              value={endSec}
+              onChange={(e) => setEndSec(e.target.value)}
+              placeholder="sec"
+              className="w-20 bg-slate-700 border border-slate-600 text-white text-center rounded-lg px-2 py-2.5 focus:outline-none focus:border-green-500"
+            />
+            <span className="text-xs text-slate-500 ml-1">MM : SS</span>
+          </div>
+        </div>
+
         {/* Goals */}
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-5 space-y-3">
           <div className="flex items-center justify-between">
@@ -224,6 +260,16 @@ export default function AddMatchPage() {
             return (
               <div key={idx} className="space-y-2 pb-2 border-b border-slate-700/50 last:border-0 last:pb-0">
                 <div className="flex gap-2 items-center">
+                  {/* Minute */}
+                  <input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={goal.minute}
+                    onChange={(e) => updateGoal(realIdx, { minute: e.target.value })}
+                    placeholder="'"
+                    className="w-12 bg-slate-700 border border-slate-600 text-white text-center rounded-lg px-1 py-2 text-sm focus:outline-none focus:border-green-500 flex-shrink-0"
+                  />
                   {/* AG toggle */}
                   <button
                     type="button"

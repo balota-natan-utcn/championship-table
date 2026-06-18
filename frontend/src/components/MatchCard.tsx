@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { Match } from '../types';
 
 interface Props {
@@ -6,13 +7,17 @@ interface Props {
 }
 
 export default function MatchCard({ match, showDate }: Props) {
+  const navigate = useNavigate();
   const isPenalty = !!match.penalty_winner_id;
   const t1 = match.team1_id;
   const t2 = match.team2_id;
   const winnerId = match.winner_id?._id ?? match.winner_id;
 
   return (
-    <div className="bg-slate-800 rounded-lg px-4 py-3.5 flex items-center gap-3 border border-slate-700 min-h-[52px]">
+    <div
+      onClick={() => navigate(`/matches/${match._id}`)}
+      className="bg-slate-800 rounded-lg px-4 py-3.5 flex items-center gap-3 border border-slate-700 min-h-[52px] cursor-pointer hover:border-slate-600 active:bg-slate-700/60 transition-colors"
+    >
       {showDate && (
         <span className="text-xs text-slate-500 w-16 flex-shrink-0 font-mono">
           {new Date(match.evening_date).toLocaleDateString('ro-RO', {

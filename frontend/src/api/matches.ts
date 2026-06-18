@@ -9,14 +9,19 @@ interface MatchPayload {
   score1: number;
   score2: number;
   penalty_winner_id?: string;
+  end_time_seconds?: number;
   goals?: {
     scorer_id: string;
     team_id: string;
     assist_id?: string;
     is_penalty_decider: boolean;
     is_own_goal?: boolean;
+    minute?: number;
   }[];
 }
+
+export const getMatchById = (id: string) =>
+  api.get<Match>(`/matches/${id}`).then((r) => r.data);
 
 export const createMatch = (data: MatchPayload) =>
   api.post<Match>('/matches', data).then((r) => r.data);
