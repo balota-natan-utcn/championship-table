@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       base: '/championship-table/',
       manifest: {
-        name: 'Championship Table',
-        short_name: 'Championship',
+        name: 'Campionat Sintetic',
+        short_name: 'Campionat',
         description: 'Clasament și statistici campionat',
         theme_color: '#0f172a',
         background_color: '#0f172a',
